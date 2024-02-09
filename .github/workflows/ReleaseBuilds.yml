@@ -46,17 +46,7 @@ jobs:
   build-macos:
     runs-on: macos-11
     timeout-minutes: 15
-    env:
-      CODE_SIGN_IDENTITY: ${{ secrets.APPLE_CODE_SIGN_IDENTITY }}
     steps:
-      - uses: apple-actions/import-codesign-certs@v1
-        with:
-          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
-          p12-password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
-      - name: Install gon for notarization
-        run: |
-          brew tap mitchellh/gon
-          brew install mitchellh/gon/gon
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
@@ -64,11 +54,6 @@ jobs:
       - run: python3 build.py --configure
       - run: python3 build.py --build
       - run: python3 build.py --package
-      - name: Notarize
-        run: gon packaging/gon-config.json
-        env:
-          AC_USERNAME: ${{ secrets.APPLE_NOTARIZATION_USERNAME }}
-          AC_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
       - uses: actions/upload-artifact@v3
         with:
           name: mac-build
