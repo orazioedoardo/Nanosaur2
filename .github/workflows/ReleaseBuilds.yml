@@ -5,11 +5,10 @@ on: [workflow_dispatch]
 jobs:
   build-linux-appimage:
     runs-on: ubuntu-20.04  # Use oldest available Ubuntu for maximum glibc compatibility
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
+      - uses: actions/checkout@v4
+        with: {submodules: 'recursive'}
       - name: Get build dependencies for SDL from APT  # cf. https://github.com/libsdl-org/SDL/blob/main/docs/README-linux.md
         run: |
           sudo apt update
@@ -22,39 +21,47 @@ jobs:
       - run: python3 build.py --configure
       - run: python3 build.py --build
       - run: python3 build.py --package
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: dist/
+          compression-level: 0
 
   build-windows:
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
+      - uses: actions/checkout@v4
+        with: {submodules: 'recursive'}
       - run: python3 build.py --dependencies
       - run: python3 build.py --configure -G 'Visual Studio 17 2022'
       - run: python3 build.py --build
       - run: python3 build.py --package
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: dist/
+          compression-level: 0
 
   build-macos:
-    runs-on: macos-11
+    runs-on: macos-12  # last runner to ship Xcode 13, which supports macOS 10.11
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
+      - uses: actions/checkout@v4
+        with: {submodules: 'recursive'}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: { xcode-version: '13' }  # last version that supports macOS 10.11
+      - name: Get artifact name
+        run: |
+          ARTIFACT_NAME="$(python3 build.py --print-artifact-name)"
+          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+          echo Artifact name = $ARTIFACT_NAME
       - run: python3 build.py --dependencies
       - run: python3 build.py --configure
       - run: python3 build.py --build
       - run: python3 build.py --package
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: mac-build
           path: dist/
+          compression-level: 0

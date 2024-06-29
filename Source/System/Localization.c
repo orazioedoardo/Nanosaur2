@@ -6,7 +6,7 @@
 #include <string.h>
 #include <SDL.h>
 
-#define CSV_PATH ":system:strings.csv"
+#define CSV_PATH ":System:strings.csv"
 
 #define MAX_STRINGS (NUM_LOCALIZED_STRINGS + 1)
 
@@ -23,6 +23,7 @@ static const char kLanguageCodesISO639_1[NUM_LANGUAGES][3] =
 	[LANGUAGE_ITALIAN	] = "it",
 	[LANGUAGE_SWEDISH	] = "sv",
 	[LANGUAGE_DUTCH		] = "nl",
+	[LANGUAGE_RUSSIAN	] = "ru",
 };
 
 void LoadLocalizedStrings(GameLanguageID languageID)
