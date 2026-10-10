@@ -270,6 +270,7 @@ if(EMSCRIPTEN)
 		-sALLOW_MEMORY_GROWTH
 		-sFULL_ES2
 		-sINVOKE_RUN=0
+		-sEXIT_RUNTIME		# returning from main calls the page's onExit
 		-sEXPORTED_RUNTIME_METHODS=callMain,FS
 		-lidbfs.js
 		"--preload-file=${GAME_DATADIR}@/Data"
