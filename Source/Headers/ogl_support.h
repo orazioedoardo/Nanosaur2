@@ -297,8 +297,14 @@ void OGL_Texture_SetOpenGLTexture(GLuint textureName);
 GLuint OGL_TextureMap_Load(void *imageMemory, int width, int height, GLint destFormat, GLint srcFormat, GLint dataType);
 GLuint OGL_TextureMap_LoadImageFile(const char* path, int* outWidth, int* outHeight, int* outHasAlpha);
 void OGL_RAMTextureHasChanged(GLuint textureName, short width, short height, uint32_t *pixels);
+#if __EMSCRIPTEN__ && !_DEBUG
+// In the browser, glGetError is a synchronous round trip to the GPU process,
+// and calling it after every GL call causes severe stuttering.
+#define OGL_CheckError() ((GLenum) GL_NO_ERROR)
+#else
 GLenum OGL_CheckError_Impl(const char* file, int line);
 #define OGL_CheckError() OGL_CheckError_Impl(__FILE__, __LINE__)
+#endif
 void OGL_GetCurrentViewport(int *x, int *y, int *w, int *h, Byte whichPane);
 
 void OGL_PushState(void);

@@ -12,6 +12,10 @@
 
 #include	"game.h"
 
+#if __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 
 /****************************/
 /*    PROTOTYPES            */
@@ -358,6 +362,10 @@ SDL_DisplayID GetPreferredSDLDisplayID(void)
 
 void MoveToPreferredDisplay(void)
 {
+#if __EMSCRIPTEN__
+	return;		// the web page sizes the canvas
+#endif
+
 	SDL_DisplayID display = GetPreferredSDLDisplayID();
 
 	int w = 640;
@@ -375,6 +383,12 @@ void MoveToPreferredDisplay(void)
 
 void SetFullscreenMode(bool enforceDisplayPref)
 {
+#if __EMSCRIPTEN__
+	// The web page handles fullscreen (Cmd+F); SDL's fullscreen would take over the whole page
+	(void) enforceDisplayPref;
+	return;
+#endif
+
 	if (!gGamePrefs.fullscreen)
 	{
 		SDL_SetWindowFullscreen(gSDLWindow, 0);
@@ -407,4 +421,34 @@ void SetFullscreenMode(bool enforceDisplayPref)
 	}
 
 	SDL_GL_SetSwapInterval(gGamePrefs.vsync);
+}
+
+
+/******************** SWAP GAME WINDOW *********************/
+//
+// Presents the frame that was just drawn.
+//
+
+#if __EMSCRIPTEN__
+double		gAnimationFrameTime = 0;		// timestamp (ms) of the latest animation frame
+uint32_t	gAnimationFrameCount = 0;		// number of animation frames waited for so far
+
+// Resumes on the browser's next animation frame (requires asyncify).
+// Returns that frame's timestamp, which is aligned to the display's refresh.
+EM_ASYNC_JS(double, WaitForAnimationFrame, (void), {
+	return await new Promise(requestAnimationFrame);
+});
+#endif
+
+void SwapGameWindow(void)
+{
+#if __EMSCRIPTEN__
+	// The browser presents WebGL frames by itself once we yield to it. Yield until the next
+	// animation frame rather than calling SDL_GL_SwapWindow (which yields with a 0-ms timeout),
+	// so that the game runs in lockstep with the display, like it does natively with vsync.
+	gAnimationFrameTime = WaitForAnimationFrame();
+	gAnimationFrameCount++;
+#else
+	SDL_GL_SwapWindow(gSDLWindow);
+#endif
 }

@@ -137,7 +137,11 @@ void InitDefaultPrefs(void)
 
 		/* DETERMINE WHAT LANGUAGE IS ON THIS MACHINE */
 
+#if __EMSCRIPTEN__
+	gGamePrefs.fullscreen				= false;	// stay inside the web page; the page does fullscreen
+#else
 	gGamePrefs.fullscreen				= true;
+#endif
 	gGamePrefs.vsync					= true;
 
 	gGamePrefs.language				= GetBestLanguageIDFromSystemLocale();

@@ -448,12 +448,37 @@ del:
 }
 
 
+/************************* SHARD LOOKS LIKE SHARD ****************************/
+//
+// Returns true if both shards can be drawn in the same draw call.
+//
+
+static Boolean ShardLooksLikeShard(const ShardType* a, const ShardType* b)
+{
+	return a->material == b->material
+		&& a->glow == b->glow
+		&& a->colorFilter.r == b->colorFilter.r
+		&& a->colorFilter.g == b->colorFilter.g
+		&& a->colorFilter.b == b->colorFilter.b
+		&& a->colorFilter.a == b->colorFilter.a;
+}
+
+
 /************************* DRAW SHARDS ****************************/
+//
+// Each shard is a single triangle with its own transform. Instead of issuing one draw call per shard,
+// shards that look alike are pre-transformed into a shared vertex buffer and drawn together.
+// This matters a lot in the browser, where each draw call is expensive.
+//
 
 static void DrawShards(ObjNode *theNode)
 {
 #pragma unused (theNode)
-long	i;
+
+static OGLPoint3D		batchPoints[MAX_SHARDS * 3];
+static OGLVector3D		batchNormals[MAX_SHARDS * 3];
+static OGLTextureCoord	batchUVs[MAX_SHARDS * 3];
+static Boolean			shardDrawn[MAX_SHARDS];
 
 	if (gNumShards == 0)												// quick check if any particles at all
 		return;
@@ -464,46 +489,82 @@ long	i;
 
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 
+	// The shards don't have normals of their own, so they're lit with the current normal,
+	// which GL transforms by each shard's matrix (inverse transpose of scale*rotation = rotation/scale)
+	OGLVector3D currentNormal;
+	glGetFloatv(GL_CURRENT_NORMAL, (GLfloat*) &currentNormal);
 
-	for (i=0; i < MAX_SHARDS; i++)
+	for (int i = 0; i < MAX_SHARDS; i++)
+		shardDrawn[i] = !gShards[i].isUsed;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, batchPoints);
+	glNormalPointer(GL_FLOAT, 0, batchNormals);
+	glTexCoordPointer(2, GL_FLOAT, 0, batchUVs);
+
+	for (int first = 0; first < MAX_SHARDS; first++)
 	{
-		if (gShards[i].isUsed)
+		if (shardDrawn[first])
+			continue;
+
+		const ShardType* look = &gShards[first];
+
+				/* SUBMIT MATERIAL */
+
+		gGlobalColorFilter.r = look->colorFilter.r;
+		gGlobalColorFilter.g = look->colorFilter.g;
+		gGlobalColorFilter.b = look->colorFilter.b;
+		gGlobalTransparency = look->colorFilter.a;
+
+		if (look->glow)
+			OGL_BlendFunc(GL_SRC_ALPHA, GL_ONE);
+		else
+		    OGL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		if (look->material)
+			MO_DrawMaterial(look->material);
+
+				/* TRANSFORM ALL SHARDS THAT LOOK THE SAME INTO THE BATCH */
+
+		int numPoints = 0;
+
+		for (int i = first; i < MAX_SHARDS; i++)
 		{
-					/* SUBMIT MATERIAL */
+			if (shardDrawn[i] || !ShardLooksLikeShard(&gShards[i], look))
+				continue;
 
-			gGlobalColorFilter.r = gShards[i].colorFilter.r;
-			gGlobalColorFilter.g = gShards[i].colorFilter.g;
-			gGlobalColorFilter.b = gShards[i].colorFilter.b;
-			gGlobalTransparency = gShards[i].colorFilter.a;
+			const ShardType* shard = &gShards[i];
+			shardDrawn[i] = true;
 
-			if (gShards[i].glow)
-				OGL_BlendFunc(GL_SRC_ALPHA, GL_ONE);
-			else
-			    OGL_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			OGLVector3D normal;
+			OGLVector3D_Transform(&currentNormal, &shard->matrix, &normal);		// = scale * rotated normal
+			float normalScale = 1.0f / (shard->scale * shard->scale);
+			normal.x *= normalScale;
+			normal.y *= normalScale;
+			normal.z *= normalScale;
 
-
-			if (gShards[i].material)
-				MO_DrawMaterial(gShards[i].material);
-
-					/* SET MATRIX */
-
-			glPushMatrix();
-			glMultMatrixf(gShards[i].matrix.value);
-
-
-					/* DRAW THE TRIANGLE */
-
-			glBegin(GL_TRIANGLES);
-			glTexCoord2f(gShards[i].uvs[0].u, gShards[i].uvs[0].v);	glVertex3f(gShards[i].points[0].x, gShards[i].points[0].y, gShards[i].points[0].z);
-			glTexCoord2f(gShards[i].uvs[1].u, gShards[i].uvs[1].v);	glVertex3f(gShards[i].points[1].x, gShards[i].points[1].y, gShards[i].points[1].z);
-			glTexCoord2f(gShards[i].uvs[2].u, gShards[i].uvs[2].v);	glVertex3f(gShards[i].points[2].x, gShards[i].points[2].y, gShards[i].points[2].z);
-			glEnd();
-
-			glPopMatrix();
+			for (int v = 0; v < 3; v++)
+			{
+				OGLPoint3D_Transform(&shard->points[v], &shard->matrix, &batchPoints[numPoints]);
+				batchNormals[numPoints] = normal;
+				batchUVs[numPoints] = shard->uvs[v];
+				numPoints++;
+			}
 		}
+
+				/* DRAW THE BATCH */
+
+		glDrawArrays(GL_TRIANGLES, 0, numPoints);
 	}
 
 		/* CLEANUP */
+
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glNormal3f(currentNormal.x, currentNormal.y, currentNormal.z);
 
 	gGlobalColorFilter.r =
 	gGlobalColorFilter.g =

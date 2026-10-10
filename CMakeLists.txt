@@ -60,6 +60,20 @@ add_compile_definitions(POMME_CASE_SENSITIVE_FSSPEC=1)
 # FIND SDL
 #------------------------------------------------------------------------------
 
+# Emscripten ships SDL3 as a port. Expose it through a tiny config package so that
+# find_package(SDL3) works both here and in Pomme.
+if(EMSCRIPTEN AND NOT DEFINED SDL3_DIR)
+	set(SDL3_DIR "${CMAKE_BINARY_DIR}/sdl3-emscripten-port")
+	file(WRITE "${SDL3_DIR}/SDL3Config.cmake" [=[
+if(NOT TARGET SDL3::SDL3)
+	add_library(SDL3::SDL3 INTERFACE IMPORTED)
+	set_target_properties(SDL3::SDL3 PROPERTIES
+		INTERFACE_COMPILE_OPTIONS "--use-port=sdl3"
+		INTERFACE_LINK_OPTIONS "--use-port=sdl3")
+endif()
+]=])
+endif()
+
 # If SDL3_DIR wasn't specified, discover if the user put some prebuilt SDL3
 # package in the 'extern' directory
 if(NOT DEFINED SDL3_DIR)
@@ -93,9 +107,33 @@ endif()
 # DEPENDENCIES
 #------------------------------------------------------------------------------
 
+if(EMSCRIPTEN)
+	# The game uses exceptions across Pomme and game code
+	add_compile_options(-fexceptions)
+	add_link_options(-fexceptions)
+endif()
+
 add_subdirectory(extern/Pomme)
 
-find_package(OpenGL REQUIRED)
+if(EMSCRIPTEN)
+	# gl4es translates the game's fixed-function OpenGL calls to GLES2/WebGL
+	include(ExternalProject)
+	set(GL4ES_DIR "${CMAKE_SOURCE_DIR}/extern/gl4es")
+	set(GL4ES_LIBRARY "${GL4ES_DIR}/lib/libGL.a")		# gl4es always builds into its own source tree
+	ExternalProject_Add(gl4es
+		SOURCE_DIR "${GL4ES_DIR}"
+		CMAKE_ARGS
+			-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+			-DCMAKE_BUILD_TYPE=Release
+			-DNOX11=ON
+			-DNOEGL=ON
+			-DSTATICLIB=ON
+		INSTALL_COMMAND ""
+		BUILD_BYPRODUCTS "${GL4ES_LIBRARY}")
+	include_directories(BEFORE "${GL4ES_DIR}/include")
+else()
+	find_package(OpenGL REQUIRED)
+endif()
 
 #------------------------------------------------------------------------------
 # EXECUTABLE TARGET
@@ -209,7 +247,34 @@ else()
 endif()
 
 # Link core dependencies
-target_link_libraries(${GAME_TARGET} PRIVATE Pomme OpenGL::GL)
+if(EMSCRIPTEN)
+	add_dependencies(${GAME_TARGET} gl4es)
+	target_link_libraries(${GAME_TARGET} PRIVATE Pomme "${GL4ES_LIBRARY}")
+else()
+	target_link_libraries(${GAME_TARGET} PRIVATE Pomme OpenGL::GL)
+endif()
+
+# Web build: the game's blocking loops yield to the browser via asyncify
+# (SwapGameWindow waits for the next animation frame), and game data is preloaded into the virtual FS
+if(EMSCRIPTEN)
+	# gl4es only exports gl4es_-prefixed symbols on Emscripten; its GL/gl.h maps the
+	# standard names onto them. Include it first so SDL_opengl.h defers to it.
+	target_compile_options(${GAME_TARGET} PRIVATE "SHELL:-include GL/gl.h")
+
+	set_target_properties(${GAME_TARGET} PROPERTIES SUFFIX ".html")
+	set_property(TARGET ${GAME_TARGET} APPEND PROPERTY LINK_DEPENDS "${CMAKE_SOURCE_DIR}/packaging/web/shell.html")
+	target_link_options(${GAME_TARGET} PRIVATE
+		-sASYNCIFY
+		-sASYNCIFY_STACK_SIZE=131072
+		-sSTACK_SIZE=1048576
+		-sALLOW_MEMORY_GROWTH
+		-sFULL_ES2
+		-sINVOKE_RUN=0
+		-sEXPORTED_RUNTIME_METHODS=callMain,FS
+		-lidbfs.js
+		"--preload-file=${GAME_DATADIR}@/Data"
+		"--shell-file=${CMAKE_SOURCE_DIR}/packaging/web/shell.html")
+endif()
 
 # Add required frameworks for KillMacMouseAcceleration
 if(APPLE)
@@ -282,8 +347,14 @@ else()
 	set(GAME_DATA_TARGET_LOCATION "$<TARGET_FILE_DIR:${GAME_TARGET}>/Data")
 endif()
 
-add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_directory "${GAME_DATADIR}" "${GAME_DATA_TARGET_LOCATION}")
+if(EMSCRIPTEN)
+	# The web build preloads Data into the .data bundle instead; the page only needs the icon
+	add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/packaging/${GAME_IDENTIFIER}.png" "$<TARGET_FILE_DIR:${GAME_TARGET}>/${GAME_TARGET}.png")
+else()
+	add_custom_command(TARGET ${GAME_TARGET} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory "${GAME_DATADIR}" "${GAME_DATA_TARGET_LOCATION}")
+endif()
 
 if(APPLE)
 	set(INFO_PLIST "${GAME_DATA_TARGET_LOCATION}/../Info.plist")

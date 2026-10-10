@@ -260,7 +260,7 @@ static void OnChangeAnaglyphMode(void)
 	{
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		SDL_GL_SwapWindow(gSDLWindow);
+		SwapGameWindow();
 	}
 
 	SetUpAnaglyphCalibrationScreen();

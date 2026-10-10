@@ -13,14 +13,20 @@
 #include "game.h"
 #include "stb_image.h"
 
+#if __EMSCRIPTEN__
+#include <gl4esinit.h>
+#endif
+
 /****************************/
 /*    PROTOTYPES            */
 /****************************/
 
+#if !__EMSCRIPTEN__		// on the web, call gl4es directly (SDL_GL_GetProcAddress would bypass gl4es)
 static PFNGLACTIVETEXTUREPROC gGlActiveTextureProc;
 static PFNGLCLIENTACTIVETEXTUREARBPROC gGlClientActiveTextureProc;
 #define glActiveTexture gGlActiveTextureProc
 #define glClientActiveTexture gGlClientActiveTextureProc
+#endif
 
 static void OGL_CreateDrawContext(void);
 static void OGL_DisposeDrawContext(void);
@@ -348,6 +354,10 @@ GLint			maxTexSize;
 	if (!gAGLContext)
 		DoFatalAlert(SDL_GetError());
 
+#if __EMSCRIPTEN__
+	initialize_gl4es();																// gl4es needs a live WebGL context
+#endif
+
 	GAME_ASSERT(glGetError() == GL_NO_ERROR);
 
 
@@ -385,11 +395,13 @@ GLint			maxTexSize;
 			/* GET GL PROCEDURES */
 			// Necessary on Windows
 
+#if !__EMSCRIPTEN__
 	gGlActiveTextureProc = (PFNGLACTIVETEXTUREPROC) SDL_GL_GetProcAddress("glActiveTexture");
 	GAME_ASSERT(gGlActiveTextureProc);
 
 	gGlClientActiveTextureProc = (PFNGLCLIENTACTIVETEXTUREARBPROC) SDL_GL_GetProcAddress("glClientActiveTexture");
 	GAME_ASSERT(gGlClientActiveTextureProc);
+#endif
 }
 
 /**************** OGL: NUKE DRAW CONTEXT *********************/
@@ -566,20 +578,20 @@ static void ClearAllBuffersToBlack(void)
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 		glDrawBuffer(GL_BACK_RIGHT);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-		SDL_GL_SwapWindow(gSDLWindow);
+		SwapGameWindow();
 		glDrawBuffer(GL_BACK_LEFT);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 		glDrawBuffer(GL_BACK_RIGHT);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-		SDL_GL_SwapWindow(gSDLWindow);
+		SwapGameWindow();
 		OGL_CheckError();
 	}
 	else
 	{
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);		// clear buffer
-		SDL_GL_SwapWindow(gSDLWindow);
+		SwapGameWindow();
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);		// clear buffer
-		SDL_GL_SwapWindow(gSDLWindow);
+		SwapGameWindow();
 
 		OGL_CheckError();
 	}
@@ -940,7 +952,7 @@ do_anaglyph:
 
            /* SWAP THE BUFFS */
 
-	SDL_GL_SwapWindow(gSDLWindow);							// end render loop
+	SwapGameWindow();							// end render loop
 
 	if (!gGamePaused)										// freeze frame count if paused (otherwise double-buffered skeletons will flicker)
 	{
@@ -1761,6 +1773,7 @@ OGLLightDefType	*lights;
 
 /******************** OGL: CHECK ERROR ********************/
 
+#if !(__EMSCRIPTEN__ && !_DEBUG)		// see ogl_support.h
 GLenum OGL_CheckError_Impl(const char* file, const int line)
 {
 	GLenum error = glGetError();
@@ -1782,6 +1795,7 @@ GLenum OGL_CheckError_Impl(const char* file, const int line)
 	}
 	return error;
 }
+#endif
 
 
 #pragma mark -

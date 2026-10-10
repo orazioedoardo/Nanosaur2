@@ -54,6 +54,28 @@ If you want to build the game **manually** instead, the rest of this document de
     ```
 1. The game gets built in `build/Release/Nanosaur2.exe`. Enjoy!
 
+## How to build the game for web browsers (WebAssembly)
+
+The web build uses [Emscripten](https://emscripten.org) to compile the game to WebAssembly, and [gl4es](https://github.com/ptitSeb/gl4es) (in `extern/gl4es`) to translate the game's legacy OpenGL calls to WebGL. SDL3 comes from Emscripten's built-in port, so you don't need to download it.
+
+1. Install the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) and activate it in your shell:
+    ```
+    source /path/to/emsdk/emsdk_env.sh
+    ```
+1. Clone the repo **recursively** (see above), or run `git submodule update --init` in an existing clone.
+1. Build the game:
+    ```
+    emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+    cmake --build build-web
+    ```
+1. The game gets built in `build-web`: `Nanosaur2.html`, `Nanosaur2.js`, `Nanosaur2.wasm`, `Nanosaur2.data` (the game's assets) and `Nanosaur2.png`. Serve that folder over HTTP, for example:
+    ```
+    python3 -m http.server --directory build-web
+    ```
+    Then open http://localhost:8000/Nanosaur2.html. Opening the HTML file directly from disk won't work.
+
+The web page template lives in `packaging/web/shell.html`. Preferences, high scores and saved games are kept in the browser's IndexedDB.
+
 ## How to build the game manually on Linux et al.
 
 1. Install the prerequisites from your package manager:

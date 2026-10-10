@@ -1,15 +1,27 @@
 #include "game.h"
 
-#if __APPLE__
+#if __EMSCRIPTEN__
+	// In the browser, avoid Cmd (keyups get lost while it's held on macOS)
+	#define SC_NWEAP SDL_SCANCODE_2
+	#define SC_PWEAP SDL_SCANCODE_1
+	#define SC_DROP1 SDL_SCANCODE_LALT
+	#define SC_DROP2 SDL_SCANCODE_RALT
+	#define SC_JETPACK1 SDL_SCANCODE_LSHIFT
+	#define SC_JETPACK2 SDL_SCANCODE_RSHIFT
+#elif __APPLE__
 	#define SC_NWEAP SDL_SCANCODE_LGUI
 	#define SC_PWEAP SDL_SCANCODE_RGUI
 	#define SC_DROP1 SDL_SCANCODE_LALT
 	#define SC_DROP2 SDL_SCANCODE_RALT
+	#define SC_JETPACK1 SDL_SCANCODE_LSHIFT
+	#define SC_JETPACK2 SDL_SCANCODE_RSHIFT
 #else
 	#define SC_NWEAP SDL_SCANCODE_LCTRL
 	#define SC_PWEAP SDL_SCANCODE_RCTRL
 	#define SC_DROP1 SDL_SCANCODE_LALT
 	#define SC_DROP2 SDL_SCANCODE_RALT
+	#define SC_JETPACK1 SDL_SCANCODE_LSHIFT
+	#define SC_JETPACK2 SDL_SCANCODE_RSHIFT
 #endif
 
 // Controller button/axis
@@ -56,7 +68,7 @@ const InputBinding kDefaultInputBindings[NUM_CONTROL_NEEDS] =
 
 	[kNeed_Jetpack] =
 	{
-		.key = { SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT },
+		.key = { SC_JETPACK1, SC_JETPACK2 },
 		.pad = { GB(SOUTH) },
 		.mouseButton = SDL_BUTTON_RIGHT,
 	},

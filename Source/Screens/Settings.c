@@ -45,10 +45,12 @@ static void OnPickLanguage(void)
 	LayoutCurrentMenuAgain(true);
 }
 
+#if !__EMSCRIPTEN__		// video settings that only exist natively (see the graphics menu)
 static void OnToggleFullscreen(void)
 {
 	SetFullscreenMode(true);
 }
+#endif
 
 static void OnPickResetKeyboardBindings(void)
 {
@@ -92,6 +94,7 @@ static void MoveTemporaryGamepadMenuText(ObjNode* theNode)
 	}
 }
 
+#if !__EMSCRIPTEN__
 static void OnChangeVSync(void)
 {
 	SDL_GL_SetSwapInterval(gGamePrefs.vsync);
@@ -111,6 +114,7 @@ static const char* GetDisplayName(Byte value)
 	SDL_snprintf(textBuf, sizeof(textBuf), "%d", value + 1);
 	return textBuf;
 }
+#endif
 
 static void OnChangeMSAA(void)
 {
@@ -323,6 +327,7 @@ static const MenuItem gSettingsMenuTree[] =
 	{.id='graf', .callback=OnEnterGraphicsMenu},
 	{kMILabel, .text=STR_GRAPHICS},
 	{kMISpacer, .customHeight=.3f},
+#if !__EMSCRIPTEN__		// the web page handles fullscreen and vsync; no display choice or MSAA in the browser
 	{
 		kMICycler2, STR_FULLSCREEN,
 		.callback=OnToggleFullscreen,
@@ -371,6 +376,7 @@ static const MenuItem gSettingsMenuTree[] =
 			},
 		},
 	},
+#endif
 	{
 		kMIPick,
 		STR_3D_GLASSES_CALIBRATE,

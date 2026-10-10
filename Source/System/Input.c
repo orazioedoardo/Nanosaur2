@@ -154,6 +154,7 @@ static void ProcessSystemKeyChords(void)
 		CleanQuit();
 	}
 
+#if !__EMSCRIPTEN__		// on the web, the page toggles fullscreen with Cmd+F
 	if (IsKeyDown(SDL_SCANCODE_RETURN)
 		&& (IsKeyHeld(SDL_SCANCODE_LALT) || IsKeyHeld(SDL_SCANCODE_RALT)))
 	{
@@ -162,6 +163,7 @@ static void ProcessSystemKeyChords(void)
 
 		InvalidateAllInputs();
 	}
+#endif
 
 }
 
