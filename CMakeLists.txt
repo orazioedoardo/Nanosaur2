@@ -261,8 +261,8 @@ if(EMSCRIPTEN)
 	# standard names onto them. Include it first so SDL_opengl.h defers to it.
 	target_compile_options(${GAME_TARGET} PRIVATE "SHELL:-include GL/gl.h")
 
-	set_target_properties(${GAME_TARGET} PROPERTIES SUFFIX ".html")
-	set_property(TARGET ${GAME_TARGET} APPEND PROPERTY LINK_DEPENDS "${CMAKE_SOURCE_DIR}/packaging/web/shell.html")
+	# Builds the game's .js, .wasm and .data; the web page that runs them comes from the site hosting the game
+	set_target_properties(${GAME_TARGET} PROPERTIES SUFFIX ".js")
 	target_link_options(${GAME_TARGET} PRIVATE
 		-sASYNCIFY
 		-sASYNCIFY_STACK_SIZE=131072
@@ -273,8 +273,7 @@ if(EMSCRIPTEN)
 		-sEXIT_RUNTIME		# returning from main calls the page's onExit
 		-sEXPORTED_RUNTIME_METHODS=callMain,FS
 		-lidbfs.js
-		"--preload-file=${GAME_DATADIR}@/Data"
-		"--shell-file=${CMAKE_SOURCE_DIR}/packaging/web/shell.html")
+		"--preload-file=${GAME_DATADIR}@/Data")
 endif()
 
 # Add required frameworks for KillMacMouseAcceleration

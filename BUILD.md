@@ -68,13 +68,9 @@ The web build uses [Emscripten](https://emscripten.org) to compile the game to W
     emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
     cmake --build build-web
     ```
-1. The game gets built in `build-web`: `Nanosaur2.html`, `Nanosaur2.js`, `Nanosaur2.wasm`, `Nanosaur2.data` (the game's assets) and `Nanosaur2.png`. Serve that folder over HTTP, for example:
-    ```
-    python3 -m http.server --directory build-web
-    ```
-    Then open http://localhost:8000/Nanosaur2.html. Opening the HTML file directly from disk won't work.
+1. The game gets built in `build-web`: `Nanosaur2.js`, `Nanosaur2.wasm`, `Nanosaur2.data` (the game's assets) and `Nanosaur2.png` (its icon).
 
-The web page template lives in `packaging/web/shell.html`. Preferences, high scores and saved games are kept in the browser's IndexedDB.
+There's no web page in the build: the site that hosts the game provides it. That page must give the runtime its canvas (`Module.canvas`), keep `/home/web_user/.config/Nanosaur2` in IndexedDB (mount `IDBFS` there and sync it before the game starts), and start the game with `Module.callMain()`, from a click so that the browser allows audio. Preferences, high scores and saved games are kept in the browser's IndexedDB.
 
 ## How to build the game manually on Linux et al.
 
