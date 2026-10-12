@@ -1,0 +1,22 @@
+diff --git a/src/gl/raster.c b/src/gl/raster.c
+index b0067219..d3aa4562 100644
+--- a/src/gl/raster.c
++++ b/src/gl/raster.c
+@@ -100,7 +100,7 @@ void APIENTRY_GL4ES gl4es_glViewport(GLint x, GLint y, GLsizei width, GLsizei he
+ 		if (glstate->raster.bm_drawing)	bitmap_flush();
+     	LOAD_GLES(glViewport);
+ 		gles_glViewport(x, y, width, height);
+-    if (x >= 0 && y >= 0 && width >= 0 && height >= 0) {
++    if (width >= 0 && height >= 0) {  // a negative x or y is valid; only a negative size is an error
+ 		  glstate->raster.viewport.x = x;
+ 		  glstate->raster.viewport.y = y;
+ 		  glstate->raster.viewport.width = width;
+@@ -145,7 +145,7 @@ void APIENTRY_GL4ES gl4es_glScissor(GLint x, GLint y, GLsizei width, GLsizei hei
+     	LOAD_GLES(glScissor);
+ 		gles_glScissor(x, y, width, height);
+ 
+-    if (x >= 0 && y >= 0 && width >= 0 && height >= 0) {
++    if (width >= 0 && height >= 0) {  // a negative x or y is valid; only a negative size is an error
+ 		  glstate->raster.scissor.x = x;
+ 		  glstate->raster.scissor.y = y;
+ 		  glstate->raster.scissor.width = width;
